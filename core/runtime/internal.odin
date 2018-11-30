@@ -20,6 +20,12 @@ print_u64 :: proc(fd: os.Handle, u: u64) {
 	os.write(fd, a[i:]);
 }
 
+test_print_ptr :: proc(ptr: rawptr) {
+	fd := os.stderr;
+	print_u64(fd, u64(uintptr(ptr)));
+	os.write_byte(fd, '\n');
+}
+
 print_i64 :: proc(fd: os.Handle, u: i64) {
 	digits := "0123456789";
 	b :: i64(10);

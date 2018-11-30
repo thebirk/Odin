@@ -1078,6 +1078,9 @@ void ir_print_instr(irFileBuffer *f, irModule *m, irValue *value) {
 	case irInstr_Store: {
 		Type *type = type_deref(ir_type(instr->Store.address));
 		ir_write_str_lit(f, "store ");
+		if (instr->Store.is_volatile) {
+			ir_write_str_lit(f, "volatile ");
+		}
 		ir_print_type(f, m, type);
 		ir_write_byte(f, ' ');
 		ir_print_value(f, m, instr->Store.value, type);
@@ -1086,6 +1089,10 @@ void ir_print_instr(irFileBuffer *f, irModule *m, irValue *value) {
 		ir_write_str_lit(f, "* ");
 		ir_print_value(f, m, instr->Store.address, type);
 		ir_print_debug_location(f, m, value);
+		if (instr->Store.alignment > 0) {
+			ir_fprintf(f, ", align %d", instr->Store.alignment);
+
+		}
 		break;
 	}
 

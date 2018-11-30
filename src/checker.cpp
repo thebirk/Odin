@@ -1460,6 +1460,8 @@ void generate_minimum_dependency_set(Checker *c, Entity *start) {
 
 		str_lit("quo_complex64"),
 		str_lit("quo_complex128"),
+
+		str_lit("test_print_ptr"),
 	};
 	for (isize i = 0; i < gb_count_of(required_runtime_entities); i++) {
 		add_dependency_to_set(c, scope_lookup(c->info.runtime_package->scope, required_runtime_entities[i]));

@@ -6006,7 +6006,8 @@ ExprKind check_expr_base_internal(CheckerContext *c, Operand *o, Ast *node, Type
 				o->value = exact_value_compound(node);
 			}
 		} else {
-			o->mode = Addressing_Value;
+			// o->mode = Addressing_Value;
+			o->mode = Addressing_Variable;
 		}
 		o->type = type;
 	case_end;

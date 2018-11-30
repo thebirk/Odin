@@ -357,7 +357,6 @@ default_assertion_failure_proc :: proc(prefix, message: string, loc: Source_Code
 }
 
 
-
 @(builtin)
 copy :: proc "contextless" (dst, src: $T/[]$E) -> int {
 	n := max(0, min(len(dst), len(src)));

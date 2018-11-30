@@ -180,7 +180,12 @@ gbAllocator ir_allocator(void) {
 		i64          alignment;                                       \
 	})                                                                \
 	IR_INSTR_KIND(ZeroInit, struct { irValue *address; })             \
-	IR_INSTR_KIND(Store,    struct { irValue *address, *value; })     \
+	IR_INSTR_KIND(Store,    struct {                                  \
+		irValue *address;                                             \
+		irValue *value;                                               \
+		i32      alignment;                                           \
+		bool     is_volatile;                                         \
+	})                                                                \
 	IR_INSTR_KIND(Load,     struct { Type *type; irValue *address; }) \
 	IR_INSTR_KIND(AtomicFence, struct { BuiltinProcId id; })          \
 	IR_INSTR_KIND(AtomicStore, struct {                               \
@@ -2653,6 +2658,24 @@ irValue *ir_emit_store(irProcedure *p, irValue *address, irValue *value) {
 	if (!is_type_untyped(b)) {
 		GB_ASSERT_MSG(are_types_identical(core_type(a), core_type(b)), "%s %s", type_to_string(a), type_to_string(b));
 	}
+	if (is_type_union(a)) {
+		irValue *dst = ir_emit_conv(p, address, t_rawptr);
+		irValue *src = nullptr;
+		if (value->kind == irValue_Instr) {
+			if (value->Instr.kind == irInstr_Load) {
+				src = value->Instr.Load.address;
+			}
+		}
+		if (src != nullptr) {
+			src = ir_emit_conv(p, src, t_rawptr);
+			auto args = array_make<irValue *>(heap_allocator(), 3);
+			args[0] = dst;
+			args[1] = src;
+			args[2] = ir_const_int(type_size_of(a));
+			return ir_emit_package_call(p, "mem", "copy", args);
+		}
+	}
+
 	return ir_emit(p, ir_instr_store(p, address, value));
 }
 irValue *ir_emit_load(irProcedure *p, irValue *address) {
@@ -4328,14 +4351,17 @@ irValue *ir_emit_uintptr_to_ptr(irProcedure *proc, irValue *value, Type *t) {
 
 void ir_emit_store_union_variant(irProcedure *proc, irValue *parent, irValue *variant, Type *variant_type) {
 	gbAllocator a = ir_allocator();
-	irValue *underlying = ir_emit_conv(proc, parent, alloc_type_pointer(variant_type));
 
+	ir_emit_comment(proc, str_lit("store union variant"));
+
+	Type *union_type = type_deref(ir_type(parent));
+
+	irValue *underlying = ir_emit_conv(proc, parent, alloc_type_pointer(variant_type));
 	ir_emit_store(proc, underlying, variant);
 
-	Type *t = type_deref(ir_type(parent));
-
 	irValue *tag_ptr = ir_emit_union_tag_ptr(proc, parent);
-	ir_emit_store(proc, tag_ptr, ir_const_union_tag(t, variant_type));
+	irValue *new_tag_val = ir_const_union_tag(union_type, variant_type);
+	ir_emit_store(proc, tag_ptr, new_tag_val);
 }
 
 irValue *ir_emit_conv(irProcedure *proc, irValue *value, Type *t) {
@@ -7025,18 +7051,16 @@ irAddr ir_build_addr(irProcedure *proc, Ast *expr) {
 
 					GB_ASSERT(ir_type(field_expr)->kind != Type_Tuple);
 
-					Type *fet = ir_type(field_expr);
-					// HACK TODO(bill): THIS IS A MASSIVE HACK!!!!
-					if (is_type_union(ft) && !are_types_identical(fet, ft) && !is_type_untyped(fet)) {
-						GB_ASSERT_MSG(union_variant_index(ft, fet) > 0, "%s", type_to_string(fet));
-
-						irValue *gep = ir_emit_struct_ep(proc, v, cast(i32)index);
-						ir_emit_store_union_variant(proc, gep, field_expr, fet);
-					} else {
-						irValue *fv = ir_emit_conv(proc, field_expr, ft);
-						irValue *gep = ir_emit_struct_ep(proc, v, cast(i32)index);
-						ir_emit_store(proc, gep, fv);
+					if (is_type_union(ft)) {
+						auto args = array_make<irValue *>(heap_allocator(), 1);
+						args[0] = ir_emit_conv(proc, v, t_rawptr);
+						ir_emit_runtime_call(proc, "test_print_ptr", args);
 					}
+
+					Type *fet = ir_type(field_expr);
+					irValue *fv = ir_emit_conv(proc, field_expr, ft);
+					irValue *gep = ir_emit_struct_ep(proc, v, cast(i32)index);
+					ir_emit_store(proc, gep, fv);
 				}
 			}
 			break;
