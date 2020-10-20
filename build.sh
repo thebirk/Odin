@@ -4,7 +4,7 @@ release_mode=$1
 
 warnings_to_disable="-std=c++11 -Wno-switch -Wno-pointer-sign -Wno-tautological-constant-out-of-range-compare -Wno-tautological-compare -Wno-macro-redefined"
 libraries="-pthread -ldl -lm -lstdc++"
-other_args=""
+other_args="-DLLVM_BACKEND_SUPPORT -I/usr/include -std=c++14   -fno-exceptions -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -L/usr/lib -lLLVM-10"
 compiler="clang"
 
 if [ -z "$release_mode" ]; then release_mode="0"; fi
